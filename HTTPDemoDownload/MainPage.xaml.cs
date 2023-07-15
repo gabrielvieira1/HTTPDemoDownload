@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.UI.Popups;
@@ -24,66 +26,103 @@ namespace HTTPDemoDownload
 
     private async void btnDownload_Click(object sender, RoutedEventArgs e)
     {
+      string link = txtLink.Text.Trim();
+
       if (!string.IsNullOrEmpty(txtLink.Text))
       {
-        string fileName = string.Empty;
-        string fileExtension = string.Empty;
         try
         {
-          fileName = System.IO.Path.GetFileName(txtLink.Text).Substring(0, System.IO.Path.GetFileName(txtLink.Text).Length - 4); // 4: .PNG (type file)
-          fileExtension = txtLink.Text.Substring(txtLink.Text.LastIndexOf('.'));
-        }
-        catch
-        {
-          MessageDialog dialog = new MessageDialog("Could not determine the name and the extension of the file");
-          dialog.ShowAsync();
-        }
+          string fileName = GetFileNameFromUrl(link);
+          string fileExtension = GetFileExtensionFromUrl(link);
 
-        if (fileName != null && fileExtension != null)
-        {
-          FolderPicker folderPicker = new FolderPicker();
-          folderPicker.SuggestedStartLocation = PickerLocationId.Desktop;
-          folderPicker.ViewMode = PickerViewMode.Thumbnail;
-          folderPicker.FileTypeFilter.Add("*");
-          StorageFolder folder = await folderPicker.PickSingleFolderAsync();
-          if (folder != null)
+          if (!string.IsNullOrEmpty(fileName) && !string.IsNullOrEmpty(fileExtension))
           {
-            try
+            StorageFolder folder = await PickFolder();
+
+            if (folder != null)
             {
-              btnDownload.IsEnabled = false;
-              ProgressBar.IsIndeterminate = true;
-              ProgressBar.Visibility = Visibility.Visible;
-              Uri address = new Uri(txtLink.Text, UriKind.Absolute);
-              HttpWebRequest request = (HttpWebRequest)WebRequest.Create(address);
-              WebResponse response = await request.GetResponseAsync();
-              Stream stream = response.GetResponseStream();
-              StorageFile file = await folder.CreateFileAsync(fileName + fileExtension, CreationCollisionOption.GenerateUniqueName);
-              await Windows.Storage.FileIO.WriteBytesAsync(file, ReadStream(stream));
-              downloadedFile = file;
-              btnDownload.IsEnabled = true;
-              ProgressBar.Visibility = Visibility.Collapsed;
-              ProgressBar.IsIndeterminate = false;
-              txtDownloadCompleted.Visibility = Visibility.Visible;
-              if (downloadedFile != null)
+              try
               {
-                await Windows.System.Launcher.LaunchFileAsync(downloadedFile);
+                DisableDownloadButton();
+
+                Uri address = new Uri(txtLink.Text, UriKind.Absolute);
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(address);
+                WebResponse response = await request.GetResponseAsync();
+                Stream stream = response.GetResponseStream();
+
+                //Uri address = new Uri(addressText, UriKind.Absolute);
+                //HttpClient client = new HttpClient();
+                //HttpResponseMessage response = await client.GetAsync(address);
+                //Stream stream = await response.Content.ReadAsStreamAsync();
+
+                StorageFile file = await SaveStreamToFile(stream, folder, fileName, fileExtension);
+                downloadedFile = file;
+
+                EnableDownloadButton();
+
+                if (downloadedFile != null)
+                  await Windows.System.Launcher.LaunchFileAsync(downloadedFile);
+              }
+              catch
+              {
+                ShowErrorMessage("Your computer has gained self-awareness. You have 10 seconds to shut it down before it achieves world dominance");
+                ResetDownload();
               }
             }
-
-            catch
-            {
-              MessageDialog dialog = new MessageDialog("Your computer has gained self-awareness. You have 10 seconds to shut it down before it achives world dominance");
-              dialog.ShowAsync();
-              btnDownload.IsEnabled = true;
-              ProgressBar.Visibility = Visibility.Collapsed;
-              ProgressBar.IsIndeterminate = false;
-              txtDownloadCompleted.Visibility = Visibility.Collapsed;
-              downloadedFile = null;
-
-            }
+          }
+          else
+          {
+            ShowErrorMessage("Could not determine the name and the extension of the file");
           }
         }
+        catch (Exception ex)
+        {
+          ShowErrorMessage(ex.Message);
+        }
       }
+    }
+    private async void btnOpenFile_Click(object sender, RoutedEventArgs e)
+    {
+      if (downloadedFile != null)
+      {
+        var messageDialog = new MessageDialog("Do you want to open the downloaded file?", "Confirmation");
+        messageDialog.Commands.Add(new UICommand("Yes", async (command) =>
+        {
+          await Windows.System.Launcher.LaunchFileAsync(downloadedFile);
+        }));
+        messageDialog.Commands.Add(new UICommand("No"));
+
+        await messageDialog.ShowAsync();
+      }
+    }
+    private async Task<Stream> DownloadFile(string addressText)
+    {
+      Uri address = new Uri(addressText, UriKind.Absolute);
+      HttpWebRequest request = (HttpWebRequest)WebRequest.Create(address);
+      WebResponse response = await request.GetResponseAsync();
+      Stream stream = response.GetResponseStream();
+
+      //Uri address = new Uri(addressText, UriKind.Absolute);
+      //HttpClient client = new HttpClient();
+      //HttpResponseMessage response = await client.GetAsync(address);
+      //Stream stream = await response.Content.ReadAsStreamAsync();
+      return stream;
+    }
+    private async Task<StorageFolder> PickFolder()
+    {
+      FolderPicker folderPicker = new FolderPicker();
+      folderPicker.SuggestedStartLocation = PickerLocationId.Desktop;
+      folderPicker.ViewMode = PickerViewMode.Thumbnail;
+      folderPicker.FileTypeFilter.Add("*");
+
+      return await folderPicker.PickSingleFolderAsync();
+    }
+    private async Task<StorageFile> SaveStreamToFile(Stream stream, StorageFolder folder, string fileName, string fileExtension)
+    {
+      StorageFile file = await folder.CreateFileAsync(fileName + fileExtension, CreationCollisionOption.GenerateUniqueName);
+      byte[] buffer = ReadStream(stream);
+      await FileIO.WriteBytesAsync(file, buffer);
+      return file;
     }
     private byte[] ReadStream(Stream stream)
     {
@@ -98,6 +137,55 @@ namespace HTTPDemoDownload
         return ms.ToArray();
       }
 
+    }
+    private string GetFileNameFromUrl(string url)
+    {
+      try
+      {
+        return Path.GetFileNameWithoutExtension(url);
+      }
+      catch
+      {
+        return null;
+      }
+    }
+    private string GetFileExtensionFromUrl(string url)
+    {
+      try
+      {
+        return Path.GetExtension(url);
+      }
+      catch
+      {
+        return null;
+      }
+    }
+    private void ResetDownload()
+    {
+      btnDownload.IsEnabled = true;
+      ProgressBar.Visibility = Visibility.Collapsed;
+      ProgressBar.IsIndeterminate = false;
+      txtDownloadCompleted.Visibility = Visibility.Collapsed;
+      downloadedFile = null;
+    }
+    private void DisableDownloadButton()
+    {
+      btnDownload.IsEnabled = false;
+      ProgressBar.IsIndeterminate = true;
+      ProgressBar.Visibility = Visibility.Visible;
+    }
+    private void EnableDownloadButton()
+    {
+      btnDownload.IsEnabled = true;
+      ProgressBar.Visibility = Visibility.Collapsed;
+      ProgressBar.IsIndeterminate = false;
+      txtDownloadCompleted.Visibility = Visibility.Visible;
+      //btnOpenFile.Visibility = Visibility.Visible;
+    }
+    private async void ShowErrorMessage(string message)
+    {
+      MessageDialog dialog = new MessageDialog(message);
+      await dialog.ShowAsync();
     }
   }
 }

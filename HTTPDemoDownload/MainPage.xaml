@@ -16,5 +16,7 @@
     <Button x:Name="btnDownload" Content="Download" HorizontalAlignment="Left" Margin="100 160 0 0" VerticalAlignment="Top" Click="btnDownload_Click"/>
     <TextBlock x:Name="txtDownloadCompleted" HorizontalAlignment="Left" Margin="100 203 0 0" TextWrapping="Wrap"
                    Text="Download Complete" VerticalAlignment="Top" FontSize="15" Visibility="Collapsed"/>
+    <!--<Button x:Name="btnOpenFile" Content="Open file" HorizontalAlignment="Left" Margin="100 226 0 0" VerticalAlignment="Top"
+                Visibility="Collapsed" Click="btnOpenFile_Click"/>-->
   </Grid>
 </Page>
