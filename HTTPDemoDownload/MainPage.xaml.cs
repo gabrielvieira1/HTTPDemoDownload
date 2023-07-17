@@ -3,11 +3,13 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Documents;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -45,15 +47,15 @@ namespace HTTPDemoDownload
               {
                 DisableDownloadButton();
 
-                Uri address = new Uri(txtLink.Text, UriKind.Absolute);
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(address);
-                WebResponse response = await request.GetResponseAsync();
-                Stream stream = response.GetResponseStream();
+                //Uri address = new Uri(txtLink.Text, UriKind.Absolute);
+                //HttpWebRequest request = (HttpWebRequest)WebRequest.Create(address);
+                //WebResponse response = await request.GetResponseAsync();
+                //Stream stream = response.GetResponseStream();
 
-                //Uri address = new Uri(addressText, UriKind.Absolute);
-                //HttpClient client = new HttpClient();
-                //HttpResponseMessage response = await client.GetAsync(address);
-                //Stream stream = await response.Content.ReadAsStreamAsync();
+                Uri address = new Uri(txtLink.Text, UriKind.Absolute);
+                HttpClient client = new HttpClient();
+                HttpResponseMessage response = await client.GetAsync(address);
+                Stream stream = await response.Content.ReadAsStreamAsync();
 
                 StorageFile file = await SaveStreamToFile(stream, folder, fileName, fileExtension);
                 downloadedFile = file;
@@ -65,19 +67,22 @@ namespace HTTPDemoDownload
               }
               catch
               {
-                ShowErrorMessage("Your computer has gained self-awareness. You have 10 seconds to shut it down before it achieves world dominance");
+                MessageDialog dialog = new MessageDialog("An error occurred while downloading the file");
+                await dialog.ShowAsync();
                 ResetDownload();
               }
             }
           }
           else
           {
-            ShowErrorMessage("Could not determine the name and the extension of the file");
+            MessageDialog dialog = new MessageDialog("Could not determine the name and the extension of the file");
+            await dialog.ShowAsync();
           }
         }
         catch (Exception ex)
         {
-          ShowErrorMessage(ex.Message);
+          MessageDialog dialog = new MessageDialog(ex.Message);
+          await dialog.ShowAsync();
         }
       }
     }
