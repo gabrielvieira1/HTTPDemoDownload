@@ -43,34 +43,25 @@ namespace HTTPDemoDownload
 
             if (folder != null)
             {
-              try
-              {
-                DisableDownloadButton();
+              DisableDownloadButton();
 
-                //Uri address = new Uri(txtLink.Text, UriKind.Absolute);
-                //HttpWebRequest request = (HttpWebRequest)WebRequest.Create(address);
-                //WebResponse response = await request.GetResponseAsync();
-                //Stream stream = response.GetResponseStream();
+              Uri address = new Uri(txtLink.Text, UriKind.Absolute);
+              HttpWebRequest request = (HttpWebRequest)WebRequest.Create(address);
+              WebResponse response = await request.GetResponseAsync();
+              Stream stream = response.GetResponseStream();
 
-                Uri address = new Uri(txtLink.Text, UriKind.Absolute);
-                HttpClient client = new HttpClient();
-                HttpResponseMessage response = await client.GetAsync(address);
-                Stream stream = await response.Content.ReadAsStreamAsync();
+              //Uri address = new Uri(txtLink.Text, UriKind.Absolute);
+              //HttpClient client = new HttpClient();
+              //HttpResponseMessage response = await client.GetAsync(address);
+              //Stream stream = await response.Content.ReadAsStreamAsync();
 
-                StorageFile file = await SaveStreamToFile(stream, folder, fileName, fileExtension);
-                downloadedFile = file;
+              StorageFile file = await SaveStreamToFile(stream, folder, fileName, fileExtension);
+              downloadedFile = file;
 
-                EnableDownloadButton();
+              EnableDownloadButton();
 
-                if (downloadedFile != null)
-                  await Windows.System.Launcher.LaunchFileAsync(downloadedFile);
-              }
-              catch
-              {
-                MessageDialog dialog = new MessageDialog("An error occurred while downloading the file");
-                await dialog.ShowAsync();
-                ResetDownload();
-              }
+              if (downloadedFile != null)
+                await Windows.System.Launcher.LaunchFileAsync(downloadedFile);
             }
           }
           else
@@ -81,8 +72,9 @@ namespace HTTPDemoDownload
         }
         catch (Exception ex)
         {
-          MessageDialog dialog = new MessageDialog(ex.Message);
+          MessageDialog dialog = new MessageDialog("An error occurred while downloading the file " + ex.Message);
           await dialog.ShowAsync();
+          ResetDownload();
         }
       }
     }
